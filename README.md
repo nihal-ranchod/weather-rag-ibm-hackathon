@@ -19,12 +19,12 @@ Our solution addresses the urgent need for AI-driven climate adaptation tools th
 
 ---
 
-## 👥 Team Members
+## 👥 Team Members - CodeX
 
-- **Nihal Ranchod**
-- **Eza Ngam**
-- **Manisha Nankoo**
-- **Zakaria Motala** 
+- **Nihal Ranchod** NRanchod@datacentrix.co.za
+- **Eza Ngam** ENgam@datacentrix.co.za
+- **Manisha Nankoo** MNankoo@datacentrix.co.za
+- **Zakaria Motala** ZMotala@datacentrix.co.za
 
 ---
 
@@ -203,22 +203,6 @@ The system understands natural language:
 - **Climate Awareness**: Interactive learning about weather patterns
 - **Community Preparedness**: Training and emergency preparedness
 - **Scientific Communication**: Making complex data accessible
-
----
-
-## 📊 Performance & Scalability
-
-### Current Capabilities
-- **Response Time**: < 60 seconds for comprehensive analysis
-- **Data Coverage**: Global, 85+ years of historical data
-- **Prediction Accuracy**: 85-95% for 24-48 hour forecasts
-- **Concurrent Users**: 100+ simultaneous connections
-
-### Scalability Features
-- **Cloud-Ready**: Designed for IBM Cloud deployment
-- **Horizontal Scaling**: Multiple worker instances
-- **Caching Layer**: Optimized data retrieval
-- **Load Balancing**: WebSocket connection management
 
 ---
 
