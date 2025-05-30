@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Extreme Weather RAG System</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <header class="header">
+            <div class="header-content">
+                <div class="logo">
+                    <i class="fas fa-hurricane"></i>
+                    <h1>Extreme Weather RAG System</h1>
+                </div>
+                <div class="status-indicators">
+                    <div class="status-item" id="rag-status">
+                        <i class="fas fa-robot"></i>
+                        <span>AI Status</span>
+                        <div class="status-light" id="rag-light"></div>
+                    </div>
+                    <div class="status-item" id="weather-status">
+                        <i class="fas fa-cloud"></i>
+                        <span>Weather API</span>
+                        <div class="status-light" id="weather-light"></div>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <div class="main-content">
+            <!-- Sidebar -->
+            <aside class="sidebar">
+                <div class="sidebar-section">
+                    <h3><i class="fas fa-map-marker-alt"></i> Quick Locations</h3>
+                    <div class="location-list">
+                        {% for location in locations %}
+                        <div class="location-item" onclick="analyzeLocation('{{ location.name }}')">
+                            <div class="location-name">{{ location.name }}</div>
+                            <div class="location-desc">{{ location.description }}</div>
+                            <div class="location-coords">{{ "%.2f, %.2f"|format(location.lat, location.lon) }}</div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+
+                <div class="sidebar-section">
+                    <h3><i class="fas fa-terminal"></i> Quick Commands</h3>
+                    <div class="command-list">
+                        <div class="command-item" onclick="sendCommand('/help')">
+                            <i class="fas fa-question-circle"></i>
+                            <span>Help & Commands</span>
+                        </div>
+                        <div class="command-item" onclick="sendCommand('/locations')">
+                            <i class="fas fa-globe"></i>
+                            <span>All Locations</span>
+                        </div>
+                        <div class="command-item" onclick="sendCommand('/status')">
+                            <i class="fas fa-info-circle"></i>
+                            <span>System Status</span>
+                        </div>
+                        <div class="command-item" onclick="sendCommand('/about')">
+                            <i class="fas fa-book"></i>
+                            <span>About System</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="sidebar-section">
+                    <h3><i class="fas fa-exclamation-triangle"></i> Weather Types</h3>
+                    <div class="weather-types">
+                        <div class="weather-type hurricane">
+                            <i class="fas fa-hurricane"></i>
+                            <span>Hurricanes</span>
+                        </div>
+                        <div class="weather-type tornado">
+                            <i class="fas fa-tornado"></i>
+                            <span>Tornadoes</span>
+                        </div>
+                        <div class="weather-type heat">
+                            <i class="fas fa-thermometer-full"></i>
+                            <span>Heat Waves</span>
+                        </div>
+                        <div class="weather-type flood">
+                            <i class="fas fa-water"></i>
+                            <span>Floods</span>
+                        </div>
+                        <div class="weather-type storm">
+                            <i class="fas fa-bolt"></i>
+                            <span>Storms</span>
+                        </div>
+                        <div class="weather-type snow">
+                            <i class="fas fa-snowflake"></i>
+                            <span>Blizzards</span>
+                        </div>
+                    </div>
+                </div>
+            </aside>
+
+            <!-- Chat Area -->
+            <main class="chat-container">
+                <div class="chat-header">
+                    <div class="chat-title">
+                        <i class="fas fa-comments"></i>
+                        <span>Weather Intelligence Chat</span>
+                    </div>
+                    <div class="chat-controls">
+                        <button id="clear-chat" class="btn-secondary">
+                            <i class="fas fa-trash"></i> Clear Chat
+                        </button>
+                        <button id="export-chat" class="btn-secondary">
+                            <i class="fas fa-download"></i> Export
+                        </button>
+                    </div>
+                </div>
+
+                <div id="chat-messages" class="chat-messages">
+                    <!-- Messages will be dynamically added here -->
+                </div>
+
+                <div class="chat-input-container">
+                    <div class="input-suggestions" id="input-suggestions">
+                        <div class="suggestion" onclick="sendSuggestion('Analyze hurricane risk for Miami')">
+                            🌀 Hurricane risk for Miami
+                        </div>
+                        <div class="suggestion" onclick="sendSuggestion('Tornado warnings for Oklahoma')">
+                            🌪️ Tornado warnings for Oklahoma
+                        </div>
+                        <div class="suggestion" onclick="sendSuggestion('Heat wave predictions for Phoenix')">
+                            🌡️ Heat wave predictions for Phoenix
+                        </div>
+                        <div class="suggestion" onclick="sendSuggestion('/predict 25.7617 -80.1918')">
+                            📍 Analyze coordinates
+                        </div>
+                    </div>
+
+                    <div class="chat-input-wrapper">
+                        <input 
+                            type="text" 
+                            id="message-input" 
+                            placeholder="Ask about weather conditions, or use /help for commands..."
+                            autocomplete="off"
+                        >
+                        <button id="send-button" class="send-button">
+                            <i class="fas fa-paper-plane"></i>
+                        </button>
+                    </div>
+
+                    <div class="input-help">
+                        <small>
+                            💡 Try: "Hurricane risk for Miami", "/analyze Phoenix", or "/help" for commands
+                        </small>
+                    </div>
+                </div>
+            </main>
+        </div>
+
+        <!-- Footer -->
+        <footer class="footer">
+            <div class="footer-content">
+                <div class="footer-section">
+                    <strong>IBM watsonx.ai Hackathon</strong> - Climate Challenge
+                </div>
+                <div class="footer-section">
+                    <i class="fas fa-database"></i> Data: Open-Meteo API (90TB+ historical weather)
+                </div>
+                <div class="footer-section">
+                    <i class="fas fa-robot"></i> AI: IBM watsonx.ai Granite Models
+                </div>
+                <div class="footer-section">
+                    <i class="fas fa-globe"></i> Coverage: Global (any location)
+                </div>
+            </div>
+        </footer>
+    </div>
+
+    <!-- Loading Overlay -->
+    <div id="loading-overlay" class="loading-overlay" style="display: none;">
+        <div class="loading-content">
+            <div class="spinner"></div>
+            <div class="loading-text">Analyzing weather patterns...</div>
+            <div class="loading-subtext">This may take 30-60 seconds</div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.js"></script>
+    <script src="{{ url_for('static', filename='js/chat.js') }}"></script>
+</body>
+</html>
