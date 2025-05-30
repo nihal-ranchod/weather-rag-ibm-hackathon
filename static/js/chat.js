@@ -236,7 +236,7 @@ class WeatherChatInterface {
         // Add initial welcome message if chat is empty
         if (this.chatMessages.children.length === 0) {
             setTimeout(() => {
-                this.addSystemMessage('🌪️ Weather RAG System Ready! Ask me about extreme weather conditions or use /help for commands.');
+                this.addSystemMessage('Weather RAG System Ready! Ask me about extreme weather conditions or use /help for commands.');
             }, 500);
         }
     }
