@@ -189,20 +189,14 @@ The system understands natural language:
 
 ## 🌍 Impact & Use Cases
 
-### Community Emergency Response
-- **Early Warning Systems**: Automated alerts for high-risk weather
-- **Emergency Planning**: Data-driven evacuation and shelter decisions
-- **Resource Allocation**: Predictive deployment of emergency services
+### Extreme Weather Event Prediction
 
-### Climate Adaptation
-- **Infrastructure Planning**: Long-term risk assessment for development
-- **Agricultural Support**: Crop protection and harvest timing
-- **Insurance Analytics**: Risk modeling for climate-related claims
+Our RAG solution directly address the critical need for accuarate extreme weather prediction by combining historical analysis with real-time monitoring.
 
-### Educational Outreach
-- **Climate Awareness**: Interactive learning about weather patterns
-- **Community Preparedness**: Training and emergency preparedness
-- **Scientific Communication**: Making complex data accessible
+#### Hurricane * Typhoon Prediction
+#### Tornado Risk Assessment
+#### Heat Wave Early Warning
+#### Flash Flood Prediction
 
 ---
 
