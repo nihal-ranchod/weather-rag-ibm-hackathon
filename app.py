@@ -289,7 +289,7 @@ def handle_connect():
     logger.info(f"Client connected: {request.sid}")
     emit('message', {
         'type': 'system',
-        'content': '🌪️ Welcome to the Extreme Weather RAG System! 🌪️\n\n' +
+        'content': 'Welcome to the Extreme Weather RAG System! \n\n' +
                   'I can help you analyze extreme weather patterns and predict dangerous conditions.\n\n' +
                   'Try these commands:\n' +
                   '• /analyze [location] - Analyze weather risks\n' +
