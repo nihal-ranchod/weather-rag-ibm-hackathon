@@ -1,4 +1,4 @@
-/* Weather RAG System Complete Styles */
+/* Weather RAG System Clean Styles */
 :root {
     --primary-color: #1e3a8a;
     --secondary-color: #3b82f6;
@@ -387,7 +387,6 @@ body {
 .message-text {
     white-space: pre-wrap;
     line-height: 1.5;
-    /* Remove any max-height or overflow hidden rules */
     word-wrap: break-word;
     overflow-wrap: break-word;
 }
@@ -675,12 +674,6 @@ body {
     color: #5b21b6;
 }
 
-/* Weather icons in messages */
-.weather-icon {
-    font-size: 1.25em;
-    margin-right: 0.25rem;
-}
-
 /* Scrollbar styling */
 .chat-messages::-webkit-scrollbar,
 .sidebar::-webkit-scrollbar {
@@ -763,7 +756,7 @@ body {
     }
     
     .input-suggestions {
-        display: none; /* Hide on mobile to save space */
+        display: none;
     }
     
     .message-content {
@@ -803,7 +796,6 @@ body {
         word-wrap: break-word;
         position: relative;
         box-shadow: var(--shadow-sm);
-        /* Ensure no height restrictions */
         max-width: none;
         width: 100%;
     }

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Weather RAG Chat Interface
+Weather RAG Chat Interface - Clean Version
 Flask web application for extreme weather predictions
 """
 
@@ -26,7 +26,9 @@ try:
 except ImportError as e:
     print(f"Import error: {e}")
     print("Please ensure all required files are present")
+    sys.exit(1)
 
+# Configure logging
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
@@ -102,15 +104,16 @@ class LocationService:
             'phoenix, az': (33.4484, -112.0740, 'Phoenix, AZ'),
             'oklahoma city': (35.4676, -97.5164, 'Oklahoma City, OK'),
             'oklahoma': (35.4676, -97.5164, 'Oklahoma City, OK'),
-            'london': (51.5074, -0.1278, 'London, UK'),
-            'london, uk': (51.5074, -0.1278, 'London, UK'),
-            'gulf coast': (29.0, -90.0, 'Gulf Coast Region'),
             'new york': (40.7128, -74.0060, 'New York, NY'),
             'los angeles': (34.0522, -118.2437, 'Los Angeles, CA'),
             'chicago': (41.8781, -87.6298, 'Chicago, IL'),
             'houston': (29.7604, -95.3698, 'Houston, TX'),
             'new orleans': (29.9511, -90.0715, 'New Orleans, LA'),
             'buffalo': (42.8864, -78.8784, 'Buffalo, NY'),
+            
+            # International Cities
+            'london': (51.5074, -0.1278, 'London, UK'),
+            'london, uk': (51.5074, -0.1278, 'London, UK'),
             'tokyo': (35.6762, 139.6503, 'Tokyo, Japan'),
             'tokyo, japan': (35.6762, 139.6503, 'Tokyo, Japan'),
             'sydney': (-33.8688, 151.2093, 'Sydney, Australia'),
@@ -119,6 +122,27 @@ class LocationService:
             'paris, france': (48.8566, 2.3522, 'Paris, France'),
             'reykjavik': (64.1466, -21.9426, 'Reykjavik, Iceland'),
             'reykjavik, iceland': (64.1466, -21.9426, 'Reykjavik, Iceland'),
+            
+            # Brazil Cities
+            'rio': (-22.9068, -43.1729, 'Rio de Janeiro, Brazil'),
+            'rio de janeiro': (-22.9068, -43.1729, 'Rio de Janeiro, Brazil'),
+            'brasilia': (-15.8267, -47.9218, 'Brasília, Brazil'),
+            'brasília': (-15.8267, -47.9218, 'Brasília, Brazil'),
+            'sao paulo': (-23.5505, -46.6333, 'São Paulo, Brazil'),
+            'são paulo': (-23.5505, -46.6333, 'São Paulo, Brazil'),
+            
+            # Other major cities
+            'berlin': (52.5200, 13.4050, 'Berlin, Germany'),
+            'madrid': (40.4168, -3.7038, 'Madrid, Spain'),
+            'rome': (41.9028, 12.4964, 'Rome, Italy'),
+            'moscow': (55.7558, 37.6176, 'Moscow, Russia'),
+            'beijing': (39.9042, 116.4074, 'Beijing, China'),
+            'mumbai': (19.0760, 72.8777, 'Mumbai, India'),
+            'cairo': (30.0444, 31.2357, 'Cairo, Egypt'),
+            'lagos': (6.5244, 3.3792, 'Lagos, Nigeria'),
+            
+            # Regions
+            'gulf coast': (29.0, -90.0, 'Gulf Coast Region'),
         }
         
         return known_locations.get(location_lower, (None, None, None))
@@ -207,16 +231,23 @@ def parse_location_from_text(text: str) -> Optional[str]:
         r'(?:analyze|check|monitor)\s+([^?.,!]+)',
         r'(?:what\'s|how\'s)\s+(?:the\s+)?weather\s+(?:like\s+)?(?:in|at|for)\s+([^?.,!]+)',
         r'predictions?\s+(?:for|in)\s+([^?.,!]+)',
-        r'(?:show\s+me|tell\s+me\s+about)\s+.*?(?:for|in|at)\s+([^?.,!]+)'
+        r'(?:show\s+me|tell\s+me\s+about)\s+.*?(?:for|in|at)\s+([^?.,!]+)',
+        r'weather\s+in\s+([^?.,!]+)',
+        r'weather\s+for\s+([^?.,!]+)',
+        r'weather\s+at\s+([^?.,!]+)',
+        r'(?:in|at|for)\s+([a-zA-Z\s]+)(?:\s*weather|\s*$)',
+        r'weather.*?([a-zA-Z]{3,}(?:\s+[a-zA-Z]{2,})*)\s*[?.]?\s*$'
     ]
     
     for pattern in patterns:
         match = re.search(pattern, text_lower)
         if match:
             location = match.group(1).strip()
-            location = re.sub(r'\b(today|tomorrow|this\s+week|next\s+week|like|please|now)\b', '', location).strip()
+            location = re.sub(r'\b(today|tomorrow|this\s+week|next\s+week|like|please|now|weather)\b', '', location).strip()
+            location = ' '.join(location.split())
+            
             if location and len(location) > 2:
-                return location.title()
+                return ' '.join(word.capitalize() for word in location.split())
     
     return None
 
@@ -230,59 +261,57 @@ def send_progress_update(message: str):
     time.sleep(0.5)
 
 def analyze_location_with_progress(location_input: str) -> str:
-    """Analyze location with progress updates and error handling"""
+    """Analyze location with progress updates"""
     
     try:
-        send_progress_update(f'[SEARCH] Looking up location: {location_input}')
+        logger.info(f"Starting analysis for location: {location_input}")
+        send_progress_update(f'Looking up location: {location_input}')
         
         lat, lon, standardized_name = location_service.get_coordinates_and_name(location_input)
+        logger.info(f"Geocoding result: lat={lat}, lon={lon}, name={standardized_name}")
         
         if lat is None or lon is None:
-            return f"""▼ Location Not Found
-Could not find location '{location_input}'.
-
-Try:
-• More specific location (e.g., 'Miami, FL' instead of 'Miami')
-• Coordinates with /predict [lat] [lon]
-• One of the predefined locations from the sidebar"""
+            logger.warning(f"Could not geocode location: {location_input}")
+            return f"Location Not Found: Could not find location '{location_input}'. Try being more specific (e.g., 'Miami, FL' instead of 'Miami')."
         
-        send_progress_update(f'[FOUND] {standardized_name} ({lat:.4f}, {lon:.4f})')
+        send_progress_update(f'Found {standardized_name} ({lat:.4f}, {lon:.4f})')
         
         if rag_system:
-            send_progress_update('[ANALYSIS] Performing comprehensive weather analysis...')
-            send_progress_update('[WAIT] This may take 30-60 seconds...')
+            send_progress_update('Performing comprehensive weather analysis...')
+            send_progress_update('This may take 30-60 seconds...')
             
             try:
+                logger.info(f"Running RAG analysis for {standardized_name}")
                 analysis = rag_system.analyze_location(lat, lon, standardized_name)
+                logger.info("RAG analysis completed successfully")
                 return format_analysis_response(analysis)
             except Exception as e:
                 logger.error(f"RAG analysis failed: {e}")
-                send_progress_update('[FALLBACK] AI analysis failed, using enhanced analysis...')
+                logger.error(traceback.format_exc())
+                send_progress_update('AI analysis failed, using enhanced analysis...')
                 return enhanced_basic_analysis(lat, lon, standardized_name)
         else:
-            send_progress_update('[ANALYSIS] Performing weather pattern analysis...')
+            logger.info("Using enhanced basic analysis (no RAG system)")
+            send_progress_update('Performing weather pattern analysis...')
             return enhanced_basic_analysis(lat, lon, standardized_name)
             
     except Exception as e:
         logger.error(f"Error in location analysis: {e}")
         logger.error(traceback.format_exc())
-        return f"""▼ Analysis Failed
-Analysis failed for '{location_input}': {str(e)}
-
-Please try again or contact support if the problem persists."""
+        return f"Analysis Failed: Analysis failed for '{location_input}': {str(e)}"
 
 def enhanced_basic_analysis(lat: float, lon: float, location_name: str) -> str:
-    """Enhanced basic analysis with prediction focus"""
+    """Enhanced basic analysis when AI is unavailable"""
     
     try:
-        send_progress_update('[DATA] Retrieving current weather forecast...')
+        send_progress_update('Retrieving current weather forecast...')
         
         forecast_data = weather_collector.get_current_forecast(lat, lon, days=7)
         
         if not forecast_data:
-            return f"▼ Data Unavailable\nCould not retrieve weather data for {location_name}. The weather service may be temporarily unavailable."
+            return f"Data Unavailable: Could not retrieve weather data for {location_name}."
         
-        send_progress_update('[PATTERNS] Analyzing weather patterns and generating predictions...')
+        send_progress_update('Analyzing weather patterns...')
         
         end_date = datetime(2024, 12, 31).date()
         start_date = end_date - timedelta(days=14)
@@ -291,34 +320,31 @@ def enhanced_basic_analysis(lat: float, lon: float, location_name: str) -> str:
             lat, lon, start_date.isoformat(), end_date.isoformat()
         )
         
-        send_progress_update('[FORECAST] Generating 7-day forecast and event predictions...')
+        send_progress_update('Generating analysis...')
         
         analyzer = EnhancedWeatherAnalyzer()
         
-        forecast_analysis = analyzer.generate_7day_forecast_analysis(forecast_data, historical_data, location_name)
+        # Generate the four required sections
+        current_conditions = analyzer.generate_current_conditions(forecast_data, location_name)
+        forecast_summary = analyzer.generate_7day_forecast_summary(forecast_data, location_name)
+        extreme_predictions = analyzer.predict_extreme_weather_events(forecast_data, historical_data, location_name)
+        intelligence_summary = analyzer.generate_weather_intelligence_summary(forecast_data, historical_data, location_name)
         
-        send_progress_update('[EVENTS] Identifying weather event risks...')
+        # Combine sections
+        response = f"{current_conditions}\n\n{forecast_summary}\n\n{extreme_predictions}\n\n{intelligence_summary}"
         
-        event_predictions = analyzer.predict_long_term_weather_events(forecast_data, historical_data, location_name)
-        
-        send_progress_update('[SEASONAL] Generating seasonal context...')
-        
-        seasonal_context = analyzer.generate_enhanced_seasonal_context(historical_data, location_name)
-        
-        response = f"{forecast_analysis}\n{event_predictions}\n{seasonal_context}"
-        
-        response += f"\n**Analysis Details:**\n"
-        response += f"• Location: {location_name} ({lat:.4f}, {lon:.4f})\n"
-        response += f"• Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
+        response += f"\n\nAnalysis Details:\n"
+        response += f"Location: {location_name} ({lat:.4f}, {lon:.4f})\n"
+        response += f"Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
         
         return response
         
     except Exception as e:
         logger.error(f"Enhanced basic analysis error: {e}")
-        return f"▼ Analysis Error\nWeather analysis failed for {location_name}: {str(e)}\n\nPlease try again later."
+        return f"Analysis Error: Weather analysis failed for {location_name}: {str(e)}"
 
 def format_analysis_response(analysis: dict) -> str:
-    """Format analysis response with prediction focus"""
+    """Format analysis response from RAG system"""
     
     try:
         location = analysis.get('location', {})
@@ -329,27 +355,26 @@ def format_analysis_response(analysis: dict) -> str:
         if ai_analysis and 'Unable to generate analysis' not in ai_analysis:
             return ai_analysis
         else:
-            analyzer = EnhancedWeatherAnalyzer()
-            
+            # Fallback to enhanced analysis
             predictions = analysis.get('predictions', [])
             historical_analysis = analysis.get('historical_analysis', {})
             
-            response = f"**WEATHER INTELLIGENCE ANALYSIS - {location_name.upper()}**\n\n"
+            response = f"WEATHER ANALYSIS - {location_name.upper()}\n\n"
             
             if predictions:
                 high_risk = [p for p in predictions if p['risk_score'] >= 5]
                 if high_risk:
-                    response += "**Immediate Weather Threats:**\n"
+                    response += "Immediate Weather Threats:\n"
                     for pred in high_risk[:3]:
-                        response += f"• **{pred['event_type']}** (Risk: {pred['risk_score']}/10)\n"
+                        response += f"• {pred['event_type']} (Risk: {pred['risk_score']}/10)\n"
                         response += f"  Time: {pred['timestamp']}\n"
                         response += f"  Conditions: {pred['conditions']['temperature']:.1f}°C, {pred['conditions']['wind_speed']:.1f} km/h winds\n\n"
                 else:
-                    response += "**No immediate high-risk weather events detected**\n\n"
+                    response += "No immediate high-risk weather events detected\n\n"
             
             stats = historical_analysis.get('statistics', {})
             if stats:
-                response += "**Historical Weather Context:**\n"
+                response += "Historical Weather Context:\n"
                 response += f"• Recent extreme events: {stats.get('total_extreme_events', 0)}\n"
                 response += f"• Peak wind speeds: {stats.get('max_wind_speed', 0):.1f} km/h\n"
                 response += f"• Temperature range: {stats.get('min_temperature', 0):.1f}°C to {stats.get('max_temperature', 0):.1f}°C\n\n"
@@ -358,7 +383,7 @@ def format_analysis_response(analysis: dict) -> str:
         
     except Exception as e:
         logger.error(f"Error formatting response: {e}")
-        return f"▼ Format Error\nError formatting analysis for {analysis.get('location', {}).get('name', 'location')}: {str(e)}"
+        return f"Format Error: Error formatting analysis for {analysis.get('location', {}).get('name', 'location')}: {str(e)}"
 
 def initialize_rag_system():
     """Initialize RAG system with enhanced response generation"""
@@ -416,7 +441,7 @@ def index():
 
 @app.route('/api/health')
 def health_check():
-    """Enhanced health check"""
+    """Health check endpoint"""
     weather_api_working = test_weather_api()
     rag_ready = rag_system is not None
     
@@ -447,12 +472,12 @@ def handle_connect():
 
 I can analyze weather patterns and predict extreme conditions worldwide.
 
-**Try these commands:**
+Try these commands:
 • /analyze [location] - Full weather risk analysis
 • /predict [lat lon] - Coordinate-based prediction
 • /help - Show all available commands
 
-**Or ask naturally:**
+Or ask naturally:
 • "Hurricane risk for Miami"
 • "Heat wave predictions for Phoenix"
 • "Show me tornado warnings for Oklahoma"
@@ -468,7 +493,7 @@ def handle_disconnect():
 
 @socketio.on('message')
 def handle_message(data):
-    """Enhanced message handling"""
+    """Handle incoming messages"""
     try:
         user_message = data.get('message', '').strip()
         logger.info(f"Processing message: {user_message}")
@@ -484,9 +509,11 @@ def handle_message(data):
         
         try:
             response = process_user_input(user_message)
+            logger.info(f"Generated response length: {len(response)} characters")
         except Exception as e:
             logger.error(f"Error processing input: {e}")
-            response = f"▼ Processing Error\nSorry, I encountered an error processing your request: {str(e)}\n\nPlease try again or use /help for available commands."
+            logger.error(traceback.format_exc())
+            response = f"Processing Error: Sorry, I encountered an error processing your request: {str(e)}"
         
         emit('message', {
             'type': 'bot',
@@ -499,12 +526,12 @@ def handle_message(data):
         logger.error(traceback.format_exc())
         emit('message', {
             'type': 'error',
-            'content': f'▼ System Error\nSystem error: {str(e)}\n\nPlease refresh the page and try again.',
+            'content': f'System Error: {str(e)}',
             'timestamp': datetime.now().isoformat()
         })
 
 def process_user_input(user_input: str) -> str:
-    """Enhanced input processing"""
+    """Process user input and generate response"""
     user_input = user_input.strip()
     
     if user_input.startswith('/'):
@@ -513,120 +540,116 @@ def process_user_input(user_input: str) -> str:
     return handle_natural_query(user_input)
 
 def handle_command(command: str) -> str:
-    """Enhanced command handling"""
+    """Handle command-based input"""
     parts = command.split()
     cmd = parts[0].lower()
     
     try:
         if cmd == '/help':
-            return """**Weather RAG System Commands**
+            return """Weather RAG System Commands
 
-**Weather Analysis:**
+Weather Analysis:
 • /analyze [location] - Comprehensive weather risk analysis
 • /predict [location or lat lon] - Detailed predictions
 • /quick [location] - Fast weather summary
-• /monitor [location] - Start monitoring alerts
 
-**Location Examples:**
+Location Examples:
 • /analyze Tokyo, Japan
 • /predict Miami, FL
 • /predict 25.7617 -80.1918 (coordinates)
-• /quick London, UK
 
-**Information:**
+Information:
 • /locations - Show high-risk locations
 • /status - System status and capabilities
 • /about - About this system
 
-**Natural Language:**
+Natural Language:
 You can also ask naturally:
 • "Hurricane risk for Florida?"
 • "Heat wave predictions for Phoenix"
-• "Tornado warnings for Oklahoma City"
 • "What's the weather like in Sydney?"
 
-**Tips:**
+Tips:
 • Be specific with locations (e.g., "Miami, FL" not just "Miami")
 • Use coordinates for precise analysis
 • Commands work worldwide with any location"""
 
         elif cmd == '/status':
             weather_working = test_weather_api()
-            return f"""**System Status Report**
+            return f"""System Status Report
 
-**AI Analysis:** {"IBM watsonx.ai Ready" if rag_system else "Basic Mode (No AI credentials)"}
-**Weather Data:** {"Open-Meteo API Connected" if weather_working else "Connection Issues"}
-**Location Service:** Global coverage enabled
-**Data Sources:** Open-Meteo (90TB+ historical), {"IBM Granite models" if rag_system else "Statistical analysis"}
+AI Analysis: {"IBM watsonx.ai Ready" if rag_system else "Basic Mode (No AI credentials)"}
+Weather Data: {"Open-Meteo API Connected" if weather_working else "Connection Issues"}
+Location Service: Global coverage enabled
+Data Sources: Open-Meteo (90TB+ historical), {"IBM Granite models" if rag_system else "Statistical analysis"}
 
-**Coverage:**
+Coverage:
 • Historical data: 1940-present
 • Forecast range: 16 days
 • Global locations: Any coordinates
 • Update frequency: Hourly
 
-**Capabilities:**
+Capabilities:
 {"• Full AI-powered analysis and predictions" if rag_system else "• Enhanced weather pattern analysis"}
 • Extended weather event detection
 • Long-term seasonal predictions
 • Real-time monitoring
 • Natural language processing
 
-**Performance:**
+Performance:
 • Response time: {"30-60 seconds (AI analysis)" if rag_system else "5-15 seconds (enhanced)"}
 • Accuracy: {"High (AI-enhanced)" if rag_system else "Good (pattern-based)"}
 
 Last updated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"""
 
         elif cmd == '/locations':
-            response = "**High-Risk Weather Locations**\n\n"
+            response = "High-Risk Weather Locations\n\n"
             for i, loc in enumerate(DEFAULT_LOCATIONS, 1):
-                response += f"**{i}. {loc['name']}**\n"
+                response += f"{i}. {loc['name']}\n"
                 response += f"   Coordinates: {loc['lat']}, {loc['lon']}\n"
                 response += f"   Risk Profile: {loc['description']}\n"
                 response += f"   Try: /analyze {loc['name']}\n\n"
             
-            response += "**Global Coverage:**\n"
+            response += "Global Coverage:\n"
             response += "• Any city name (e.g., /analyze Berlin, Germany)\n"
             response += "• Coordinates (e.g., /predict 52.5200 13.4050)\n"
             response += "• Natural language (e.g., \"Hurricane risk for Caribbean\")"
             return response
 
         elif cmd == '/about':
-            return f"""**Extreme Weather RAG System**
+            return f"""Extreme Weather RAG System
 
-**Mission:** Save lives through AI-powered early warning systems
+Mission: Save lives through AI-powered early warning systems
 
-**Technology Stack:**
-• **AI Engine:** {"IBM watsonx.ai Granite models" if rag_system else "Enhanced statistical algorithms"}
-• **Weather Data:** Open-Meteo API (90+ TB historical data)
-• **Coverage:** Global (any location worldwide)
-• **Analysis:** RAG (Retrieval-Augmented Generation)
+Technology Stack:
+• AI Engine: {"IBM watsonx.ai Granite models" if rag_system else "Enhanced statistical algorithms"}
+• Weather Data: Open-Meteo API (90+ TB historical data)
+• Coverage: Global (any location worldwide)
+• Analysis: RAG (Retrieval-Augmented Generation)
 
-**Capabilities:**
+Capabilities:
 • Hurricane/Typhoon prediction and tracking
 • Tornado risk assessment and warnings
 • Heat wave and cold wave detection
 • Severe thunderstorm analysis
 • Flash flood prediction
 • Long-term seasonal forecasting
-• Extended event predictions (30-90 days)
 
-**Hackathon Project:**
+Hackathon Project:
 Built for IBM watsonx.ai Hackathon - Climate Challenge
 Team: CodeX (Nihal, Eza, Manisha, Zakaria)
 
-**Data Sources:**
+Data Sources:
 • Historical weather: 1940-present (Open-Meteo Archive)
 • Real-time forecasts: 16-day predictions
 • {"AI insights: IBM watsonx.ai" if rag_system else "Enhanced analysis: Local algorithms"}
 
-**Impact:**
-Protecting communities worldwide through intelligent weather analysis and extended forecasting systems."""
+Impact:
+Protecting communities worldwide through intelligent weather analysis."""
 
         elif cmd == '/analyze':
             if len(parts) < 2:
-                return "▼ Missing Location\nPlease specify a location.\n\n**Examples:**\n• /analyze Tokyo, Japan\n• /analyze Miami, FL\n• /analyze Phoenix, Arizona"
+                return "Missing Location: Please specify a location.\n\nExamples:\n• /analyze Tokyo, Japan\n• /analyze Miami, FL\n• /analyze Phoenix, Arizona"
             
             location_input = ' '.join(parts[1:])
             return analyze_location_with_progress(location_input)
@@ -639,7 +662,7 @@ Protecting communities worldwide through intelligent weather analysis and extend
                     if -90 <= lat <= 90 and -180 <= lon <= 180:
                         return predict_coordinates(lat, lon)
                     else:
-                        return "▼ Invalid Coordinates\nLatitude must be -90 to 90, longitude -180 to 180."
+                        return "Invalid Coordinates: Latitude must be -90 to 90, longitude -180 to 180."
                 except ValueError:
                     pass
             
@@ -647,73 +670,72 @@ Protecting communities worldwide through intelligent weather analysis and extend
                 location_input = ' '.join(parts[1:])
                 return analyze_location_with_progress(location_input)
             else:
-                return "▼ Missing Input\nPlease provide location or coordinates.\n\n**Examples:**\n• /predict Tokyo, Japan\n• /predict 35.6762 139.6503"
+                return "Missing Input: Please provide location or coordinates.\n\nExamples:\n• /predict Tokyo, Japan\n• /predict 35.6762 139.6503"
 
         elif cmd == '/quick':
             if len(parts) < 2:
-                return "▼ Missing Location\nPlease specify a location.\n\n**Example:** /quick London, UK"
+                return "Missing Location: Please specify a location.\n\nExample: /quick London, UK"
             
             location_input = ' '.join(parts[1:])
             return quick_weather_summary(location_input)
 
-        elif cmd == '/monitor':
-            if len(parts) < 2:
-                return "▼ Missing Location\nPlease specify a location.\n\n**Example:** /monitor Miami, FL"
-            
-            location_input = ' '.join(parts[1:])
-            return start_monitoring(location_input)
-
         else:
-            return f"▼ Unknown Command\nUnknown command: {cmd}\n\nType /help to see all available commands."
+            return f"Unknown Command: Unknown command: {cmd}\n\nType /help to see all available commands."
 
     except Exception as e:
         logger.error(f"Error in command handling: {e}")
-        return f"▼ Command Error\nError processing command {cmd}: {str(e)}\n\nType /help for available commands."
+        return f"Command Error: Error processing command {cmd}: {str(e)}"
 
 def handle_natural_query(query: str) -> str:
-    """Enhanced natural language processing"""
+    """Handle natural language queries"""
+    
+    logger.info(f"Processing natural language query: {query}")
     
     location = parse_location_from_text(query)
+    logger.info(f"Extracted location: {location}")
     
     if location:
         query_lower = query.lower()
         
         if any(word in query_lower for word in ['quick', 'brief', 'summary']):
+            logger.info(f"Processing quick summary for: {location}")
             return quick_weather_summary(location)
         else:
+            logger.info(f"Processing full analysis for: {location}")
             return analyze_location_with_progress(location)
     
-    return """**I'd be happy to help with weather analysis!**
+    logger.warning(f"No location found in query: {query}")
+    return """I'd be happy to help with weather analysis!
 
 Please specify a location in your query:
 
-**Examples:**
+Examples:
 • "Hurricane risk for Miami"
 • "What's the weather like in Tokyo?"
 • "Heat wave predictions for Phoenix"
 • "Tornado warnings for Oklahoma City"
 
-**Quick Commands:**
+Quick Commands:
 • /analyze [location] - Full analysis
 • /quick [location] - Fast summary
 • /help - See all commands
 
-**Supported Locations:**
+Supported Locations:
 • Any city worldwide
 • Coordinates (latitude, longitude)
 • Regions (e.g., "Gulf Coast")"""
 
 def predict_coordinates(lat: float, lon: float) -> str:
-    """Enhanced coordinate prediction"""
+    """Predict weather for specific coordinates"""
     
     try:
-        send_progress_update(f'[COORDINATES] Analyzing coordinates {lat:.4f}, {lon:.4f}')
+        send_progress_update(f'Analyzing coordinates {lat:.4f}, {lon:.4f}')
         
         location_name = get_location_name(lat, lon)
-        send_progress_update(f'[LOCATION] Identified: {location_name}')
+        send_progress_update(f'Identified: {location_name}')
         
         if rag_system:
-            send_progress_update('[ANALYSIS] Running comprehensive analysis...')
+            send_progress_update('Running comprehensive analysis...')
             analysis = rag_system.analyze_location(lat, lon, location_name)
             return format_analysis_response(analysis)
         else:
@@ -721,10 +743,10 @@ def predict_coordinates(lat: float, lon: float) -> str:
             
     except Exception as e:
         logger.error(f"Error in coordinate prediction: {e}")
-        return f"▼ Coordinate Analysis Failed\nError analyzing coordinates {lat}, {lon}: {str(e)}"
+        return f"Coordinate Analysis Failed: Error analyzing coordinates {lat}, {lon}: {str(e)}"
 
 def get_location_name(lat: float, lon: float) -> str:
-    """Enhanced location name lookup"""
+    """Get location name from coordinates"""
     
     try:
         url = "https://nominatim.openstreetmap.org/reverse"
@@ -778,81 +800,28 @@ def get_location_name(lat: float, lon: float) -> str:
     return f"{region} {ns} {ew} Region ({lat:.3f}, {lon:.3f})"
 
 def quick_weather_summary(location_input: str) -> str:
-    """Enhanced quick weather summary with predictions"""
+    """Generate quick weather summary"""
     
     try:
         lat, lon, name = location_service.get_coordinates_and_name(location_input)
         
         if lat is None:
-            return f"▼ Location Not Found\nCould not find location: {location_input}"
+            return f"Location Not Found: Could not find location: {location_input}"
         
-        send_progress_update(f'[QUICK] Generating enhanced weather summary for {name}')
+        send_progress_update(f'Generating weather summary for {name}')
         
         forecast_data = weather_collector.get_current_forecast(lat, lon, days=3)
         if not forecast_data:
-            return f"▼ Data Unavailable\nWeather data unavailable for {name}"
+            return f"Data Unavailable: Weather data unavailable for {name}"
         
         analyzer = EnhancedWeatherAnalyzer()
         
-        historical_data = {'extreme_events': [], 'statistics': {}}
-        event_predictions = analyzer.predict_long_term_weather_events(forecast_data, historical_data, name)
+        current_conditions = analyzer.generate_current_conditions(forecast_data, name)
         
-        if "No major weather events predicted" in event_predictions:
-            summary = f"**{name} - Weather All Clear**\n\n{event_predictions}"
-        else:
-            lines = event_predictions.split('\n')
-            event_lines = [line for line in lines if line.startswith('►')]
-            if event_lines:
-                summary = f"**{name} - Weather Alert**\n\n{event_lines[0]}\n"
-                for line in lines:
-                    if line.startswith('  • Timing:') or line.startswith('  • Probability:'):
-                        summary += f"{line}\n"
-            else:
-                summary = f"**{name} - Weather Summary**\n\n{event_predictions[:300]}..."
-        
-        return summary
+        return f"{name} - Weather Summary\n\n{current_conditions}"
         
     except Exception as e:
-        return f"▼ Quick Summary Failed\nEnhanced quick summary failed: {str(e)}"
-
-def start_monitoring(location_input: str) -> str:
-    """Enhanced monitoring setup"""
-    
-    try:
-        lat, lon, name = location_service.get_coordinates_and_name(location_input)
-        
-        if lat is None:
-            return f"▼ Location Not Found\nCould not find location: {location_input}"
-        
-        return f"""**Weather Monitoring Started - {name}**
-
-**Location:** {name} ({lat:.4f}, {lon:.4f})
-**Monitoring:** Continuous weather pattern analysis
-**Alert Threshold:** Risk level 6/10 or higher
-
-**What I'm monitoring:**
-• Hurricane/tropical storm development
-• Tornado-favorable atmospheric conditions
-• Severe thunderstorm formation
-• Extreme temperature events (heat/cold waves)
-• Heavy precipitation and flood risks
-• Blizzard and ice storm conditions
-
-**Alert System:**
-In a production environment, this would provide:
-• Real-time SMS/email alerts
-• Emergency broadcast integration
-• Community notification systems
-• Escalation to local emergency management
-
-**Demo Note:**
-This is a demonstration system. For actual emergency alerts, always rely on official weather services and local emergency management.
-
-**Current Status:** Monitoring active
-Use /analyze {name} for detailed current assessment."""
-
-    except Exception as e:
-        return f"▼ Monitoring Setup Failed\nMonitoring setup failed: {str(e)}"
+        return f"Quick Summary Failed: {str(e)}"
 
 def test_weather_api() -> bool:
     """Test weather API connectivity"""
@@ -867,7 +836,7 @@ if __name__ == '__main__':
     os.makedirs('logs', exist_ok=True)
     
     print("\n" + "="*60)
-    print("EXTREME WEATHER RAG SYSTEM - ENHANCED VERSION")
+    print("EXTREME WEATHER RAG SYSTEM - CLEAN VERSION")
     print("="*60)
     
     rag_initialized = initialize_rag_system()
@@ -884,15 +853,13 @@ if __name__ == '__main__':
         print("   1. Set WATSONX_API_KEY environment variable")
         print("   2. Set WATSONX_PROJECT_ID environment variable")
         print("   3. Or update credentials in src/config.py")
-        print("\n   System will run in enhanced mode with advanced weather analysis!")
+        print("\n   System will run in enhanced mode!")
     
     if not weather_working:
         print("\nWeather API connectivity issues detected")
         print("   System will use mock data for demonstration")
     
     print(f"\nStarting server on http://localhost:{FLASK_PORT}")
-    print("   The interface is mobile-responsive")
-    print("   Global weather analysis available")
     print("   Press Ctrl+C to stop\n")
     
     # Start the Flask-SocketIO server

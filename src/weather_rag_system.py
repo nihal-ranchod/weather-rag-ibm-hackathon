@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Extreme Weather Event Prediction RAG System
-Built for IBM watsonx.ai Hackathon - Climate Challenge
+Clean and optimized version for IBM watsonx.ai Hackathon
 """
 
 import requests
@@ -27,6 +27,7 @@ class WeatherDataCollector:
         self.forecast_url = f"{self.base_url}/forecast"
         self.session = requests.Session()
         
+        # Configure retry strategy
         from requests.adapters import HTTPAdapter
         from urllib3.util.retry import Retry
         
@@ -40,7 +41,7 @@ class WeatherDataCollector:
         self.session.mount("https://", adapter)
         
     def get_historical_data(self, lat: float, lon: float, start_date: str, end_date: str) -> Dict:
-        """Retrieve historical weather data for extreme weather analysis"""
+        """Retrieve historical weather data"""
         
         params = {
             "latitude": lat,
@@ -71,7 +72,7 @@ class WeatherDataCollector:
             return self._create_mock_historical_data(lat, lon)
     
     def get_current_forecast(self, lat: float, lon: float, days: int = 7) -> Dict:
-        """Get current weather forecast for prediction analysis"""
+        """Get current weather forecast"""
         
         params = {
             "latitude": lat,
@@ -195,22 +196,7 @@ class ExtremeWeatherDetector:
         """Analyze historical data to identify extreme weather patterns"""
         
         if not weather_data or 'hourly' not in weather_data:
-            return {
-                "extreme_events": [],
-                "statistics": {
-                    "total_extreme_events": 0,
-                    "avg_wind_speed": 10.0,
-                    "max_wind_speed": 25.0,
-                    "total_precipitation": 30.0,
-                    "avg_temperature": 20.0,
-                    "max_temperature": 28.0,
-                    "min_temperature": 12.0
-                },
-                "analysis_period": {
-                    "start": (datetime.now() - timedelta(days=30)).isoformat(),
-                    "end": datetime.now().isoformat()
-                }
-            }
+            return self._create_default_analysis()
         
         try:
             hourly = weather_data['hourly']
@@ -273,32 +259,7 @@ class ExtremeWeatherDetector:
                     })
             
             # Calculate statistics
-            stats = {}
-            if 'wind_speed_10m' in df_hourly.columns:
-                wind_speeds = pd.to_numeric(df_hourly['wind_speed_10m'], errors='coerce').fillna(0)
-                stats.update({
-                    "avg_wind_speed": float(wind_speeds.mean()),
-                    "max_wind_speed": float(wind_speeds.max())
-                })
-            else:
-                stats.update({"avg_wind_speed": 10.0, "max_wind_speed": 25.0})
-            
-            if 'precipitation' in df_hourly.columns:
-                precipitation = pd.to_numeric(df_hourly['precipitation'], errors='coerce').fillna(0)
-                stats["total_precipitation"] = float(precipitation.sum())
-            else:
-                stats["total_precipitation"] = 30.0
-            
-            if 'temperature_2m' in df_hourly.columns:
-                temperatures = pd.to_numeric(df_hourly['temperature_2m'], errors='coerce').fillna(20)
-                stats.update({
-                    "avg_temperature": float(temperatures.mean()),
-                    "max_temperature": float(temperatures.max()),
-                    "min_temperature": float(temperatures.min())
-                })
-            else:
-                stats.update({"avg_temperature": 20.0, "max_temperature": 28.0, "min_temperature": 12.0})
-            
+            stats = self._calculate_statistics(df_hourly)
             stats["total_extreme_events"] = len(extreme_events)
             
             return {
@@ -312,25 +273,61 @@ class ExtremeWeatherDetector:
             
         except Exception as e:
             logger.error(f"Error analyzing historical patterns: {e}")
-            return {
-                "extreme_events": [],
-                "statistics": {
-                    "total_extreme_events": 0,
-                    "avg_wind_speed": 10.0,
-                    "max_wind_speed": 25.0,
-                    "total_precipitation": 30.0,
-                    "avg_temperature": 20.0,
-                    "max_temperature": 28.0,
-                    "min_temperature": 12.0
-                },
-                "analysis_period": {
-                    "start": (datetime.now() - timedelta(days=30)).isoformat(),
-                    "end": datetime.now().isoformat()
-                }
+            return self._create_default_analysis()
+    
+    def _calculate_statistics(self, df_hourly: pd.DataFrame) -> Dict:
+        """Calculate weather statistics from dataframe"""
+        
+        stats = {}
+        
+        if 'wind_speed_10m' in df_hourly.columns:
+            wind_speeds = pd.to_numeric(df_hourly['wind_speed_10m'], errors='coerce').fillna(0)
+            stats.update({
+                "avg_wind_speed": float(wind_speeds.mean()),
+                "max_wind_speed": float(wind_speeds.max())
+            })
+        else:
+            stats.update({"avg_wind_speed": 10.0, "max_wind_speed": 25.0})
+        
+        if 'precipitation' in df_hourly.columns:
+            precipitation = pd.to_numeric(df_hourly['precipitation'], errors='coerce').fillna(0)
+            stats["total_precipitation"] = float(precipitation.sum())
+        else:
+            stats["total_precipitation"] = 30.0
+        
+        if 'temperature_2m' in df_hourly.columns:
+            temperatures = pd.to_numeric(df_hourly['temperature_2m'], errors='coerce').fillna(20)
+            stats.update({
+                "avg_temperature": float(temperatures.mean()),
+                "max_temperature": float(temperatures.max()),
+                "min_temperature": float(temperatures.min())
+            })
+        else:
+            stats.update({"avg_temperature": 20.0, "max_temperature": 28.0, "min_temperature": 12.0})
+        
+        return stats
+    
+    def _create_default_analysis(self) -> Dict:
+        """Create default analysis when data is unavailable"""
+        return {
+            "extreme_events": [],
+            "statistics": {
+                "total_extreme_events": 0,
+                "avg_wind_speed": 10.0,
+                "max_wind_speed": 25.0,
+                "total_precipitation": 30.0,
+                "avg_temperature": 20.0,
+                "max_temperature": 28.0,
+                "min_temperature": 12.0
+            },
+            "analysis_period": {
+                "start": (datetime.now() - timedelta(days=30)).isoformat(),
+                "end": datetime.now().isoformat()
             }
+        }
     
     def predict_extreme_events(self, forecast_data: Dict, historical_analysis: Dict) -> List[Dict]:
-        """Predict potential extreme weather events based on forecast and historical patterns"""
+        """Predict potential extreme weather events based on forecast"""
         
         if not forecast_data or 'hourly' not in forecast_data:
             return []
@@ -532,28 +529,21 @@ Keep response under 300 words."""
         
         high_risk_predictions = [p for p in predictions if p.get('risk_score', 0) >= 5]
         
-        analysis = f"""COMPREHENSIVE WEATHER ANALYSIS - {location.upper()}
+        analysis = f"""WEATHER ANALYSIS - {location.upper()}
 
 CURRENT THREATS: 
-Weather analysis shows {extreme_events} extreme events detected in recent historical data. Current atmospheric conditions indicate {risk_level} overall risk based on meteorological patterns.
+Analysis shows {extreme_events} extreme events detected in recent historical data. Current atmospheric conditions indicate {risk_level} overall risk.
 
 7-DAY RISK ASSESSMENT: {risk_level}
-• Wind conditions: Maximum speeds of {max_wind:.1f} km/h recorded
-• Temperature extremes: Range from {min_temp:.1f}°C to {max_temp:.1f}°C  
-• Weather events: {len(high_risk_predictions)} high-risk events predicted in next 7 days
+Wind conditions: Maximum speeds of {max_wind:.1f} km/h recorded
+Temperature extremes: Range from {min_temp:.1f}°C to {max_temp:.1f}°C  
+Weather events: {len(high_risk_predictions)} high-risk events predicted
 
 SAFETY RECOMMENDATIONS:
-Residents should maintain emergency preparedness:
-• Keep emergency supplies including water, food, flashlights, and battery radio
-• Monitor local weather alerts and emergency management updates
-• {"Avoid outdoor activities during severe weather" if risk_level == "HIGH" else "Exercise caution during adverse weather conditions"}
-• Have emergency contacts and evacuation plans ready
-
-IMMEDIATE ACTIONS:
-{"URGENT: Take shelter immediately if severe weather approaches. Avoid flooded areas and downed power lines." if risk_level == "HIGH" else "Stay informed about changing weather conditions. Prepare for possible severe weather."}
+{"URGENT: Take shelter immediately if severe weather approaches. Avoid flooded areas and downed power lines." if risk_level == "HIGH" else "Stay informed about changing weather conditions. Monitor local weather alerts."}
 
 CLIMATE CONTEXT:
-Recent weather patterns show {"significant atmospheric instability" if extreme_events > 0 else "generally stable conditions"} for {location}. Historical analysis indicates {"elevated risk periods" if max_wind > 50 else "normal seasonal variations"} requiring continued monitoring."""
+Recent weather patterns show {"significant atmospheric instability" if extreme_events > 0 else "generally stable conditions"} for {location}."""
 
         return analysis
 
@@ -575,39 +565,9 @@ Recent weather patterns show {"significant atmospheric instability" if extreme_e
         """Clean AI response"""
         lines = [line.strip() for line in response.split('\n') if line.strip()]
         return '\n'.join(lines)
-    
-    def generate_community_alert(self, prediction: Dict, location: str) -> str:
-        """Generate community alert"""
-        return f"""WEATHER ALERT for {location}
-
-THREAT: {prediction['event_type']}
-TIMING: {prediction['timestamp']}
-RISK LEVEL: {prediction['risk_score']}/10
-
-TAKE ACTION: {"IMMEDIATE SHELTER RECOMMENDED" if prediction['risk_score'] >= 7 else "MONITOR CONDITIONS CLOSELY"}
-
-Stay informed through local weather services."""
-
-    def get_historical_insights(self, extreme_events: List[Dict], location_name: str = None) -> str:
-        """Generate insights from historical extreme weather patterns"""
-        location = location_name if location_name else "this location"
-        
-        if not extreme_events:
-            return f"No significant extreme weather events detected in recent historical data for {location}."
-        
-        event_types = {}
-        for event in extreme_events:
-            event_type = event.get('type', 'Unknown')
-            event_types[event_type] = event_types.get(event_type, 0) + 1
-        
-        insights = f"Historical weather patterns for {location}:\n"
-        for event_type, count in event_types.items():
-            insights += f"- {count} {event_type}(s) recorded\n"
-        
-        return insights
 
 class ExtremeWeatherRAGSystem:
-    """Main RAG system for extreme weather prediction and community alerts"""
+    """Main RAG system for extreme weather prediction"""
     
     def __init__(self, watsonx_api_key: str, watsonx_project_id: str, 
                  watsonx_endpoint: str = "https://us-south.ml.cloud.ibm.com"):
@@ -626,42 +586,36 @@ class ExtremeWeatherRAGSystem:
         
         logger.info(f"Starting analysis for {location_name} ({lat}, {lon})")
         
+        # Get historical data
         today = datetime.now().date()
         end_date = datetime(2023, 12, 31).date()
         start_date = end_date - timedelta(days=days_history)
-        
-        logger.info(f"Requesting historical data from {start_date} to {end_date}")
         
         historical_data = self.weather_collector.get_historical_data(
             lat, lon, start_date.isoformat(), end_date.isoformat()
         )
         
+        # Get forecast data
         forecast_data = self.weather_collector.get_current_forecast(lat, lon, days=7)
         
+        # Analyze patterns
         historical_analysis = self.detector.analyze_historical_patterns(historical_data)
-        
         predictions = self.detector.predict_extreme_events(forecast_data, historical_analysis)
         
+        # Generate AI analysis
         ai_analysis = self.ai_integration.generate_weather_analysis(
             historical_analysis, predictions, location_name
         )
         
+        # Generate alerts for high-risk events
         alerts = []
         for prediction in predictions:
             if prediction['risk_score'] >= 5:
-                alert = self.ai_integration.generate_community_alert(prediction, location_name)
                 alerts.append({
                     "timestamp": prediction['timestamp'],
-                    "alert_text": alert,
-                    "risk_score": prediction['risk_score']
+                    "risk_score": prediction['risk_score'],
+                    "event_type": prediction['event_type']
                 })
-        
-        if historical_analysis.get('extreme_events'):
-            historical_insights = self.ai_integration.get_historical_insights(
-                historical_analysis['extreme_events'], location_name
-            )
-        else:
-            historical_insights = f"No significant extreme weather events detected in historical data for {location_name}."
         
         return {
             "location": {
@@ -672,8 +626,7 @@ class ExtremeWeatherRAGSystem:
             "historical_analysis": historical_analysis,
             "predictions": predictions,
             "ai_analysis": ai_analysis,
-            "community_alerts": alerts,
-            "historical_insights": historical_insights,
+            "community_alerts": alerts
         }
     
     def quick_analysis(self, lat: float, lon: float, location_name: str) -> str:
@@ -683,7 +636,7 @@ class ExtremeWeatherRAGSystem:
             forecast_data = self.weather_collector.get_current_forecast(lat, lon, days=3)
             
             if not forecast_data:
-                return f"Unable to retrieve weather data for {location_name}. Please try again."
+                return f"Unable to retrieve weather data for {location_name}."
             
             predictions = self.detector.predict_extreme_events(forecast_data, {})
             
@@ -706,99 +659,3 @@ class ExtremeWeatherRAGSystem:
         except Exception as e:
             logger.error(f"Quick analysis error: {e}")
             return f"Quick analysis failed for {location_name}: {str(e)}"
-    
-    def monitor_location(self, lat: float, lon: float, location_name: str, 
-                        check_interval: int = 3600) -> None:
-        """Continuously monitor a location for extreme weather threats"""
-        
-        logger.info(f"Starting continuous monitoring for {location_name}")
-        
-        while True:
-            try:
-                forecast_data = self.weather_collector.get_current_forecast(lat, lon, days=3)
-                
-                predictions = self.detector.predict_extreme_events(forecast_data, {})
-                
-                immediate_threats = [
-                    p for p in predictions 
-                    if pd.to_datetime(p['timestamp']) <= datetime.now() + timedelta(hours=6)
-                    and p['risk_score'] >= 6
-                ]
-                
-                if immediate_threats:
-                    logger.warning(f"IMMEDIATE THREAT DETECTED for {location_name}")
-                    for threat in immediate_threats:
-                        alert = self.ai_integration.generate_community_alert(threat, location_name)
-                        logger.warning(f"ALERT: {alert}")
-                        
-                        print(f"\nEXTREME WEATHER ALERT for {location_name}")
-                        print(f"Time: {threat['timestamp']}")
-                        print(f"Risk Score: {threat['risk_score']}/10")
-                        print(f"Alert: {alert}\n")
-                
-                time.sleep(check_interval)
-                
-            except KeyboardInterrupt:
-                logger.info("Monitoring stopped by user")
-                break
-            except Exception as e:
-                logger.error(f"Error in monitoring loop: {e}")
-                time.sleep(60)
-
-
-def main():
-    """Example usage of the Extreme Weather RAG System"""
-    
-    WATSONX_API_KEY = "your_watsonx_api_key_here"
-    WATSONX_PROJECT_ID = "your_project_id_here"
-    WATSONX_ENDPOINT = "https://us-south.ml.cloud.ibm.com"
-    
-    test_locations = [
-        {"name": "Miami, FL", "lat": 25.7617, "lon": -80.1918},
-        {"name": "Moore, OK", "lat": 35.3395, "lon": -97.4864},
-        {"name": "Phoenix, AZ", "lat": 33.4484, "lon": -112.0740},
-        {"name": "Buffalo, NY", "lat": 42.8864, "lon": -78.8784},
-    ]
-    
-    try:
-        rag_system = ExtremeWeatherRAGSystem(
-            watsonx_api_key=WATSONX_API_KEY,
-            watsonx_project_id=WATSONX_PROJECT_ID,
-            watsonx_endpoint=WATSONX_ENDPOINT
-        )
-        
-        print("Extreme Weather Prediction RAG System")
-        print("=" * 50)
-        
-        for location in test_locations:
-            print(f"\nAnalyzing {location['name']}...")
-            
-            analysis = rag_system.analyze_location(
-                lat=location['lat'],
-                lon=location['lon'], 
-                location_name=location['name'],
-                days_history=30
-            )
-            
-            print(f"\nAnalysis Results for {location['name']}:")
-            print(f"Historical extreme events: {analysis['historical_analysis'].get('statistics', {}).get('total_extreme_events', 0)}")
-            print(f"Predictions for next 7 days: {len(analysis['predictions'])}")
-            print(f"High-risk alerts: {len(analysis['community_alerts'])}")
-            
-            ai_analysis = analysis['ai_analysis']
-            print(f"\nAI Analysis Preview:")
-            print(ai_analysis[:300] + "..." if len(ai_analysis) > 300 else ai_analysis)
-            
-            if analysis['community_alerts']:
-                print(f"\nACTIVE ALERTS:")
-                for alert in analysis['community_alerts']:
-                    print(f"- Risk Level {alert['risk_score']}/10 at {alert['timestamp']}")
-        
-    except Exception as e:
-        logger.error(f"Error initializing system: {e}")
-        print("\nError: Please check your watsonx.ai credentials and try again.")
-        print("Make sure to replace the placeholder API key and project ID with your actual credentials.")
-
-
-if __name__ == "__main__":
-    main()

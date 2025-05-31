@@ -1,4 +1,4 @@
-// Weather RAG Chat Interface JavaScript
+// Weather RAG Chat Interface JavaScript - Clean Version
 class WeatherChatInterface {
     constructor() {
         this.socket = io();
@@ -34,7 +34,7 @@ class WeatherChatInterface {
             }
         });
         
-        // Auto-resize input and show suggestions
+        // Show/hide suggestions
         this.messageInput.addEventListener('input', () => {
             this.toggleSuggestions();
         });
@@ -44,7 +44,6 @@ class WeatherChatInterface {
         });
         
         this.messageInput.addEventListener('blur', () => {
-            // Hide suggestions after a delay to allow clicking
             setTimeout(() => this.hideSuggestions(), 200);
         });
         
@@ -76,7 +75,7 @@ class WeatherChatInterface {
             console.log('Disconnected from server');
             this.isConnected = false;
             this.updateConnectionStatus(false);
-            this.addSystemMessage('⚠️ Connection lost. Attempting to reconnect...');
+            this.addSystemMessage('Connection lost. Attempting to reconnect...');
         });
         
         this.socket.on('message', (data) => {
@@ -103,7 +102,7 @@ class WeatherChatInterface {
         if (!message) return;
         
         if (!this.isConnected) {
-            this.addSystemMessage('❌ Not connected to server. Please refresh the page.');
+            this.addSystemMessage('Not connected to server. Please refresh the page.');
             return;
         }
         
@@ -153,13 +152,13 @@ class WeatherChatInterface {
         avatar.className = 'message-avatar';
         
         const icons = {
-            'bot': '🤖',
-            'user': '👤',
-            'system': '⚙️',
-            'error': '❌'
+            'bot': '<i class="fas fa-robot"></i>',
+            'user': '<i class="fas fa-user"></i>',
+            'system': '<i class="fas fa-cog"></i>',
+            'error': '<i class="fas fa-exclamation-triangle"></i>'
         };
         
-        avatar.innerHTML = icons[type] || '💬';
+        avatar.innerHTML = icons[type] || '<i class="fas fa-comment"></i>';
         return avatar;
     }
     
@@ -196,15 +195,6 @@ class WeatherChatInterface {
             .replace(/\n/g, '<br>')                            // Line breaks
             .replace(/• /g, '• ')                              // Bullet points
             .replace(/(\d+\. )/g, '<strong>$1</strong>');      // Numbered lists
-        
-        // Add weather icons
-        formatted = formatted
-            .replace(/🌀|hurricane|Hurricane/g, '<span class="weather-icon">🌀</span>Hurricane')
-            .replace(/🌪️|tornado|Tornado/g, '<span class="weather-icon">🌪️</span>Tornado')
-            .replace(/🌡️|heat wave|Heat Wave/g, '<span class="weather-icon">🌡️</span>Heat Wave')
-            .replace(/🌊|flood|Flood/g, '<span class="weather-icon">🌊</span>Flood')
-            .replace(/⛈️|storm|Storm/g, '<span class="weather-icon">⛈️</span>Storm')
-            .replace(/❄️|blizzard|Blizzard/g, '<span class="weather-icon">❄️</span>Blizzard');
         
         // Add risk level indicators
         formatted = formatted
@@ -258,7 +248,7 @@ class WeatherChatInterface {
         const typingDiv = document.createElement('div');
         typingDiv.className = 'message bot typing-message';
         typingDiv.innerHTML = `
-            <div class="message-avatar">🤖</div>
+            <div class="message-avatar"><i class="fas fa-robot"></i></div>
             <div class="message-content">
                 <div class="message-bubble">
                     <div class="typing-indicator">
@@ -364,8 +354,12 @@ class WeatherChatInterface {
                 ragLight.className = 'status-light warning';
             }
             
-            // Weather API is always available
-            weatherLight.className = 'status-light';
+            // Weather API status
+            if (status.weather_api_ready) {
+                weatherLight.className = 'status-light';
+            } else {
+                weatherLight.className = 'status-light warning';
+            }
             
         } catch (error) {
             console.error('Failed to check system status:', error);
@@ -418,7 +412,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
     
-    // Add some helpful tooltips and interactions
+    // Add helpful tooltips
     addTooltips();
     addKeyboardHints();
 });
@@ -439,54 +433,17 @@ function addKeyboardHints() {
     }
 }
 
-// Add some utility functions for enhanced functionality
-function formatWeatherData(data) {
-    // Helper function to format weather data in messages
-    if (typeof data === 'object') {
-        return Object.entries(data)
-            .map(([key, value]) => `${key}: ${value}`)
-            .join(', ');
-    }
-    return data;
-}
-
-function addWeatherEmoji(text) {
-    // Add appropriate weather emojis based on text content
-    const emojiMap = {
-        'hurricane': '🌀',
-        'tornado': '🌪️',
-        'storm': '⛈️',
-        'rain': '🌧️',
-        'snow': '❄️',
-        'heat': '🌡️',
-        'cold': '🥶',
-        'wind': '💨',
-        'flood': '🌊',
-        'drought': '🏜️',
-        'fire': '🔥',
-        'lightning': '⚡'
-    };
-    
-    let result = text;
-    Object.entries(emojiMap).forEach(([word, emoji]) => {
-        const regex = new RegExp(`\\b${word}\\b`, 'gi');
-        result = result.replace(regex, `${emoji} ${word}`);
-    });
-    
-    return result;
-}
-
 // Error handling for network issues
 window.addEventListener('online', () => {
     if (window.chatInterface) {
-        window.chatInterface.addSystemMessage('✅ Connection restored');
+        window.chatInterface.addSystemMessage('Connection restored');
         window.chatInterface.updateConnectionStatus(true);
     }
 });
 
 window.addEventListener('offline', () => {
     if (window.chatInterface) {
-        window.chatInterface.addSystemMessage('⚠️ No internet connection');
+        window.chatInterface.addSystemMessage('No internet connection');
         window.chatInterface.updateConnectionStatus(false);
     }
 });
