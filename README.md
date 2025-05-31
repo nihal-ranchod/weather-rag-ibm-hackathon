@@ -56,12 +56,64 @@ Our solution addresses the urgent need for AI-driven climate adaptation tools th
 
 ## System Architecture
 
-```
-User Interface → Flask Web App → Weather RAG System → IBM watsonx.ai
-                              ↓
-                Weather Data Collector → Open-Meteo API (90TB+ Historical Data)
-                              ↓
-                Extreme Weather Detector → Prediction Engine
+```mermaid
+graph TB
+    %% User Interface Layer
+    A[User Interface<br/>React/HTML Chat] --> B[Flask Web Application<br/>WebSocket Communication]
+    
+    %% Core System Layer
+    B --> C[Weather RAG System<br/>Main Orchestrator]
+    
+    %% AI Processing Layer
+    C --> D[IBM watsonx.ai<br/>Granite 13B Instruct v2]
+    C --> E[Enhanced AI Response<br/>4-Section Generator]
+    
+    %% Data Collection Layer
+    C --> F[Weather Data Collector<br/>API Integration]
+    C --> G[Location Service<br/>Global Geocoding]
+    
+    %% Analysis Layer
+    C --> H[Extreme Weather Detector<br/>Pattern Analysis]
+    C --> I[Enhanced Weather Analyzer<br/>Prediction Engine]
+    
+    %% External Data Sources
+    F --> J[Open-Meteo API<br/>Current Forecast]
+    F --> K[Open-Meteo Archive<br/>90TB+ Historical Data]
+    G --> L[Nominatim<br/>OpenStreetMap Geocoding]
+    G --> M[Photon<br/>Backup Geocoding]
+    
+    %% AI Model Integration
+    D --> N[Granite Model<br/>Text Generation]
+    D --> O[RAG Pipeline<br/>Context Integration]
+    
+    %% Response Generation
+    E --> P[Current Conditions<br/>Live Data]
+    E --> Q[7-Day Forecast<br/>Daily Summary]
+    E --> R[Extreme Predictions<br/>Event Analysis]
+    E --> S[Intelligence Summary<br/>Risk Assessment]
+    
+    %% Analysis Components
+    H --> T[Historical Pattern<br/>Recognition]
+    H --> U[Risk Scoring<br/>Algorithm]
+    I --> V[Seasonal Analysis<br/>Long-term Patterns]
+    I --> W[Event Prediction<br/>Threat Detection]
+    
+    %% Data Flow Styling
+    classDef userLayer fill:#e1f5fe,stroke:#01579b,stroke-width:2px
+    classDef appLayer fill:#f3e5f5,stroke:#4a148c,stroke-width:2px
+    classDef aiLayer fill:#fff3e0,stroke:#e65100,stroke-width:2px
+    classDef dataLayer fill:#e8f5e8,stroke:#1b5e20,stroke-width:2px
+    classDef externalLayer fill:#fff8e1,stroke:#f57f17,stroke-width:2px
+    classDef analysisLayer fill:#fce4ec,stroke:#880e4f,stroke-width:2px
+    
+    class A userLayer
+    class B appLayer
+    class C,E appLayer
+    class D,N,O aiLayer
+    class F,G dataLayer
+    class J,K,L,M externalLayer
+    class H,I,T,U,V,W analysisLayer
+    class P,Q,R,S aiLayer
 ```
 
 ### Core Components
