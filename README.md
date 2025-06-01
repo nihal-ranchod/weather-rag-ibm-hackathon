@@ -16,6 +16,8 @@ The **Extreme Weather RAG System** is an intelligent early warning platform that
 ### Hackathon Theme: Climate Challenge
 Our solution addresses the urgent need for AI-driven climate adaptation tools that can save lives and protect communities from increasingly severe weather events.
 
+Publicly Accessible Video Demo: https://www.youtube.com/watch?v=OYACwJ_PijI
+
 ---
 
 ## Team Members - CodeX
