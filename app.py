@@ -593,7 +593,6 @@ Capabilities:
 {"• Full AI-powered analysis and predictions" if rag_system else "• Enhanced weather pattern analysis"}
 • Extended weather event detection
 • Long-term seasonal predictions
-• Real-time monitoring
 • Natural language processing
 
 Performance:
